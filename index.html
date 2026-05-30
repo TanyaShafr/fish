@@ -332,13 +332,20 @@ function fishSVG(p){
  const fin=`hsl(${fh} 70% 57%)`, findk=`hsl(${fh} 68% 47%)`;
  const ink='#1b2531';
  const ry=27+p.round*5, rx=34-p.round*2, cx=62, cy=46, top=cy-ry, bot=cy+ry, id='f'+(++_fishN);
- let mouth;
- if(p.mouth==='teeth') mouth=`<path d="M73 54 q9 -3 18 0 q-3 8 -9 8 q-6 0 -9 -8z" fill="${ink}"/><rect x="77" y="54" width="10" height="3" rx="1" fill="#fff"/>`;
- else if(p.mouth==='frown') mouth=`<path d="M74 60 Q82 52 90 60" fill="none" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/>`;
- else if(p.mouth==='o') mouth=`<ellipse cx="82" cy="57" rx="4" ry="4.6" fill="${ink}"/>`;
- else mouth=`<path d="M74 55 Q82 63 90 55" fill="none" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/>`;
- const angry=p.angry>0.4;
- const brows = angry ? `<line x1="66" y1="29" x2="80" y2="34" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/><line x1="98" y1="29" x2="84" y2="34" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/>` : '';
+ const mood=p.mood||'happy';
+ // pupils shift to reinforce the mood
+ const py = mood==='sad'?43.6:(mood==='angry'?42.6:41.4);
+ let brows='', mouth='', tear='';
+ if(mood==='sad'){
+   brows=`<line x1="66" y1="34" x2="79" y2="29" stroke="${ink}" stroke-width="2.6" stroke-linecap="round"/><line x1="97" y1="34" x2="84" y2="29" stroke="${ink}" stroke-width="2.6" stroke-linecap="round"/>`;
+   mouth=`<path d="M74 61 Q82 53 90 61" fill="none" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/>`;
+   tear=`<path d="M70 50 q-3.4 5 0 8.6 q3.4 -3.6 0 -8.6z" fill="#5cc8f0"/>`;
+ } else if(mood==='angry'){
+   brows=`<line x1="66" y1="29" x2="80" y2="35" stroke="${ink}" stroke-width="3" stroke-linecap="round"/><line x1="97" y1="29" x2="83" y2="35" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`;
+   mouth=`<path d="M74 61 Q82 54 90 61" fill="none" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/>`;
+ } else {
+   mouth=`<path d="M73 54 Q82 64 91 54" fill="none" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/>`;
+ }
  let deco=`<g fill="${light}" opacity=".9"><path d="M51 40 l4 4 l-4 4 l-4 -4z"/><path d="M60 48 l3.4 3.4 l-3.4 3.4 l-3.4 -3.4z"/></g>`;
  if(p.pattern==='dots') deco=`<g fill="${light}" opacity=".9"><circle cx="52" cy="42" r="3.2"/><circle cx="46" cy="52" r="2.6"/><circle cx="60" cy="56" r="2.6"/></g>`;
  if(p.pattern==='stripes') deco=`<g stroke="${bodyDk}" stroke-width="4" opacity=".4" stroke-linecap="round"><line x1="50" y1="${top+8}" x2="48" y2="${bot-8}"/><line x1="62" y1="${top+5}" x2="60" y2="${bot-5}"/></g>`;
@@ -356,29 +363,30 @@ function fishSVG(p){
    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id}b)"/>
   </g>
   <ellipse cx="${cx-7}" cy="${top+ry*.42}" rx="${rx*.42}" ry="${ry*.22}" fill="#fff" opacity=".28"/>
-  ${deco}${brows}
+  ${deco}
   <circle cx="74" cy="40" r="9.5" fill="#fff"/><circle cx="89" cy="40" r="9.5" fill="#fff"/>
-  <circle cx="75.6" cy="41.4" r="5" fill="#16202b"/><circle cx="90.6" cy="41.4" r="5" fill="#16202b"/>
-  <circle cx="73.6" cy="38.4" r="1.8" fill="#fff"/><circle cx="88.6" cy="38.4" r="1.8" fill="#fff"/>
-  ${mouth}</svg>`;
+  <circle cx="75.6" cy="${py}" r="5" fill="#16202b"/><circle cx="90.6" cy="${py}" r="5" fill="#16202b"/>
+  <circle cx="73.6" cy="${py-3}" r="1.8" fill="#fff"/><circle cx="88.6" cy="${py-3}" r="1.8" fill="#fff"/>
+  ${brows}${tear}${mouth}</svg>`;
 }
 const clamp=v=>Math.max(0,Math.min(1,v)), nz=(v,a)=>clamp(v+(Math.random()-.5)*a);
 // feature idx: 0 fishShape,1 animalish,2 manmade,3 dull,4 red,5 blue,6 green,7 round,8 teeth,9 angry
 function fishItem(opts={}){
  const names=Object.keys(COLORS);
  const color=opts.color||names[Math.random()*names.length|0];
- const moods=['smile','dots','stripes','teeth','frown','o'];
  const round=opts.round!=null?opts.round:Math.random();
- const angry=opts.angry!=null?opts.angry:(Math.random()<.4?Math.random():0);
- const mouth=opts.mouth||(angry>.4?(Math.random()<.5?'teeth':'frown'):(['smile','o','smile'][Math.random()*3|0]));
+ const mood=opts.mood||(Math.random()<.6?'happy':(Math.random()<.5?'sad':'angry'));
  const pattern=opts.pattern||(['none','dots','stripes','none'][Math.random()*4|0]);
- const p={hue:COLORS[color]+(Math.random()*16-8),round,mouth,pattern,angry};
+ const p={hue:COLORS[color]+(Math.random()*16-8),round,mood,pattern};
+ // f[7]=happy, f[8]=sad, f[9]=angry  (one mood active) — drives the "opinion" lesson
  const f=[nz(1,.1),nz(.8,.25),0,nz(.1,.1),
    color==='red'||color==='orange'?nz(.9,.15):nz(.05,.1),
    color==='blue'?nz(.9,.15):nz(.05,.1),
    color==='green'?nz(.9,.15):nz(.05,.1),
-   round,(mouth==='teeth')?1:nz(.05,.1),angry];
- return {kind:'fish',svg:fishSVG(p),f,truthFish:true,truthBelongs:true,color,html:true};
+   mood==='happy'?nz(.92,.1):nz(.04,.08),
+   mood==='sad'?nz(.92,.1):nz(.04,.08),
+   mood==='angry'?nz(.92,.1):nz(.04,.08)];
+ return {kind:'fish',svg:fishSVG(p),f,truthFish:true,truthBelongs:true,color,mood,html:true};
 }
 const CBASE={whale:{0:.15,1:.9,3:1},dolphin:{0:.2,1:.9,3:.9},turtle:{0:.18,1:.85,3:.4},
  jelly:{0:.05,1:.4,3:.2},octopus:{0:.1,1:.9,3:.5},crab:{0:.06,1:.7,3:.4,4:.6}};
@@ -416,7 +424,7 @@ function deckCreatures(n){const c=['whale','dolphin','turtle','jelly','octopus',
  // guarantee at least 2 creatures
  d[0]=creatureItem('whale');d[1]=creatureItem('dolphin');return shuffle(d);}
 function deckColors(n){const cs=Object.keys(COLORS);const d=[];for(let i=0;i<n;i++)d.push(fishItem({color:cs[i%cs.length]}));return shuffle(d);}
-function deckExpr(n){const d=[];for(let i=0;i<n;i++)d.push(fishItem());return d;}
+function deckExpr(n){const moods=['happy','sad','angry'];const d=[];for(let i=0;i<n;i++)d.push(fishItem({mood:moods[i%3]}));return shuffle(d);}
 
 /* ---------- engine ---------- */
 const stage=document.getElementById('stage');
@@ -577,7 +585,7 @@ const SCENES=[
  {type:'narrate',seg:3,text:()=>'Проверим, научился ли ИИ находить '+ruColorAcc(state.targetColor)+' рыб.',btn:'▶ Запустить'},
  {type:'run',seg:3,title:()=>'ИИ ищет '+ruColorAcc(state.targetColor)+' рыб',truth:'color',scoreLabel:'точность',mode:'pick',deck:()=>deckColors(8),btn:'Дальше'},
  {type:'narrate',seg:4,text:'Шаг 4. А теперь — слово, которое зависит от твоего <b>мнения</b>. Ты сам решаешь, какие рыбы ему подходят.',btn:'Выбрать слово'},
- {type:'choice',seg:4,q:'Какому слову научим ИИ?',store:'word',options:[{label:'😠 Сердитый',value:'сердитый'},{label:'😊 Дружелюбный',value:'дружелюбный'},{label:'😢 Грустный',value:'грустный'}]},
+ {type:'choice',seg:4,q:'Какому слову научим ИИ?',store:'word',options:[{label:'😠 Сердитый',value:'сердитый'},{label:'😊 Весёлый',value:'весёлый'},{label:'😢 Грустный',value:'грустный'}]},
  {type:'label',seg:4,q:()=>'Эта рыба «'+state.word+'»?',no:'Нет',yes:'Да',mask:'subj',min:30,deck:()=>deckExpr(12)},
  {type:'narrate',seg:4,text:'▶ Посмотрим, кого ИИ теперь считает такими.',btn:'Запустить'},
  {type:'run',seg:4,title:()=>'ИИ ищет «'+state.word+'» рыб',score:false,mode:'pick',deck:()=>deckExpr(8),btn:'Что это значит?'},
