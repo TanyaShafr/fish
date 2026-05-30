@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Океан-ИИ · тренажёр</title>
+<style>
+  :root{
+   /* light sunny ocean palette */
+   --ink:#093a52;--ink-soft:#3b7d97;
+   --sky-top:#e3f8ff;--sky-1:#aceaf8;--sky-2:#5ed0ec;--sky-3:#2bb1d9;--sky-deep:#1690c6;
+   --cyan:#1cc1e6;--cyan-soft:#7fe6f5;--coral:#ff6f61;--amber:#ffb13b;--green:#2fd49a;
+   --blue:#3a9bff;--purple:#9b7bff;--pink:#ff8fc7;
+   --card:rgba(255,255,255,.78);--card-line:rgba(255,255,255,.85);
+   --shadow:rgba(10,78,116,.22);
+   /* legacy aliases kept for robot/fish refs */
+   --abyss:#093a52;--foam:#093a52;--muted:#3b7d97;--panel:rgba(255,255,255,.78);--line:rgba(255,255,255,.85);
+   --sans:-apple-system,'SF Pro Rounded',BlinkMacSystemFont,'Helvetica Neue',system-ui,sans-serif;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden}
+  body{font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;letter-spacing:-.015em;
+   background:
+     radial-gradient(110% 70% at 50% -15%,rgba(255,255,255,.85),rgba(255,255,255,0) 55%),
+     linear-gradient(180deg,var(--sky-top) 0%,var(--sky-1) 26%,var(--sky-2) 56%,var(--sky-3) 82%,var(--sky-deep) 100%)}
+  .bubbles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+  .bubble{position:absolute;bottom:-40px;border-radius:50%;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.5),rgba(127,233,243,.06));border:1px solid rgba(255,255,255,.12);animation:rise linear infinite}
+  @keyframes rise{0%{transform:translateY(0);opacity:0}10%{opacity:.6}90%{opacity:.4}100%{transform:translateY(-105vh);opacity:0}}
+  .app{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;padding:18px clamp(14px,4vw,52px)}
+  header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:clamp(16px,2vw,24px)}.brand .a{color:var(--cyan)}
+  .track{display:flex;gap:6px;flex-wrap:wrap}
+  .seg{padding:7px 14px;border-radius:12px;background:rgba(255,255,255,.06);color:var(--muted);font-size:clamp(10px,1.1vw,13px);font-weight:700;transition:transform .35s cubic-bezier(.34,1.56,.64,1),background .25s,color .25s,box-shadow .25s;backdrop-filter:blur(8px)}
+  .seg.active{color:var(--abyss);background:var(--cyan);box-shadow:0 6px 18px rgba(58,215,232,.4);transform:scale(1.1)}
+  .seg.done{color:var(--cyan)}
+  main{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+  .stage{width:100%;max-width:1060px;display:flex;flex-direction:column;align-items:center;gap:18px;animation:fade .55s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes fade{0%{opacity:0;transform:translateY(16px) scale(.96)}60%{transform:translateY(-4px) scale(1.01)}80%{transform:translateY(2px)}100%{opacity:1;transform:none}}
+  h2{font-size:clamp(22px,3.2vw,40px);font-weight:800;text-align:center;line-height:1.1;letter-spacing:-.03em}
+  .q{font-size:clamp(20px,2.8vw,34px);font-weight:800;text-align:center;letter-spacing:-.025em}
+  /* AI face */
+  /* AI is the 🤖 emoji now — fully styled in the v3 light-theme section below */
+  .bubble-txt{background:rgba(2,12,20,.72);border:1px solid var(--line);border-radius:22px;padding:22px 30px;font-size:clamp(16px,2vw,23px);line-height:1.45;max-width:46ch;text-align:center;backdrop-filter:blur(28px) saturate(180%)}
+  .row{display:flex;align-items:center;gap:22px;justify-content:center;flex-wrap:wrap}
+  .ico{display:inline-flex;align-items:center;justify-content:center;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;line-height:1;font-style:normal}
+  .item-card{width:clamp(150px,30vw,240px);aspect-ratio:1;display:grid;place-items:center;border-radius:28px;
+   background:var(--panel);border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.4);backdrop-filter:blur(20px) saturate(180%)}
+  .item-card .ico{font-size:clamp(80px,16vw,150px)}
+  .item-card svg.fish{width:80%;height:80%}
+  .btn{border:none;cursor:pointer;font-family:inherit;font-weight:800;border-radius:16px;
+   font-size:clamp(14px,1.7vw,19px);padding:15px 30px;color:var(--abyss);background:linear-gradient(180deg,var(--cyan-soft),var(--cyan));
+   box-shadow:0 9px 28px rgba(58,215,232,.38);transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .25s,opacity .2s}
+  .btn:hover{transform:translateY(-4px) scale(1.05);box-shadow:0 18px 40px rgba(58,215,232,.5)}
+  .btn:active{transform:scale(.94)!important;transition-duration:.08s}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;filter:grayscale(.4)}
+  .btn.amber{background:linear-gradient(180deg,#ffd27a,var(--amber));box-shadow:0 9px 28px rgba(243,181,63,.32)}
+  .btn.amber:hover{box-shadow:0 18px 40px rgba(243,181,63,.48)}
+  .btn.ghost{background:var(--panel);color:var(--foam);border:1px solid var(--line);box-shadow:none;backdrop-filter:blur(12px)}
+  .choices{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+  .choice{cursor:pointer;font-weight:800;border-radius:18px;padding:16px 28px;font-size:clamp(15px,1.9vw,21px);
+   border:2px solid var(--line);background:rgba(255,255,255,.06);color:var(--foam);
+   transition:transform .3s cubic-bezier(.34,1.56,.64,1),border-color .2s,color .2s,box-shadow .25s;
+   backdrop-filter:blur(10px)}
+  .choice:hover{transform:translateY(-4px) scale(1.06);border-color:var(--cyan);color:var(--cyan);box-shadow:0 10px 28px rgba(58,215,232,.22)}
+  .choice:active{transform:scale(.95);transition-duration:.08s}
+  .lbtns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+  .lbtn{display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:800;border-radius:18px;padding:16px 32px;
+   font-size:clamp(15px,1.9vw,21px);border:2px solid;background:rgba(255,255,255,.05);
+   transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;backdrop-filter:blur(10px)}
+  .lbtn:hover{transform:translateY(-4px) scale(1.06)}
+  .lbtn:active{transform:scale(.95);transition-duration:.08s}
+  .lbtn.no{color:var(--coral);border-color:rgba(255,107,94,.5)}
+  .lbtn.no:hover{box-shadow:0 10px 28px rgba(255,107,94,.25)}
+  .lbtn.yes{color:var(--green);border-color:rgba(79,224,160,.5)}
+  .lbtn.yes:hover{box-shadow:0 10px 28px rgba(79,224,160,.25)}
+  .meta{color:var(--muted);font-weight:700;font-size:clamp(13px,1.5vw,16px)}.meta b{color:var(--foam)}
+  .progress{height:20px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid var(--line);width:min(70vw,460px)}
+  .progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--cyan));transition:width .12s linear}
+  /* run */
+  .ocean{position:relative;width:100%;height:clamp(280px,46vh,420px);border-radius:22px;overflow:hidden;border:1px solid var(--line);
+   background:linear-gradient(180deg,rgba(14,122,147,.22),rgba(2,21,33,.55))}
+  .scan{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:clamp(120px,22vw,180px);height:clamp(120px,22vw,180px);
+   display:grid;place-items:center;border-radius:14px;transition:transform .9s cubic-bezier(.4,.1,.2,1),opacity .9s,left .9s,top .9s}
+  .scan svg.fish{width:78%;height:78%}.scan .ico{font-size:clamp(70px,14vw,130px)}
+  .scan.box{border:3px solid var(--cyan);box-shadow:0 0 0 6px rgba(58,215,232,.12)}
+  .badge{position:absolute;font-size:clamp(30px,6vw,54px);opacity:0;transition:.3s}
+  .scoreboard{position:absolute;left:16px;top:12px;font-weight:800;z-index:3}
+  .scoreboard .big{font-size:clamp(26px,4vw,44px);color:var(--cyan)}
+  .scoreboard small{display:block;color:var(--muted);font-size:clamp(10px,1.2vw,13px);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .aibox{position:absolute;right:16px;top:10px;width:clamp(60px,9vw,92px);z-index:3}
+  .bin{position:absolute;right:14px;bottom:8px;font-size:clamp(34px,6vw,60px);opacity:.8}
+  .result .num{font-size:clamp(48px,9vw,104px);font-weight:800;line-height:1}
+  .footer{display:flex;justify-content:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+
+/* ===== v2 polish ===== */
+.stage{gap:20px}
+.q{margin:2px 0 4px}
+.ocean{background:linear-gradient(180deg,#0a3a55 0%,#072a40 55%,#04202f 100%)}
+.obg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.obg .ray{position:absolute;top:-10%;width:16%;height:130%;background:linear-gradient(transparent,rgba(127,233,243,.10),transparent);transform:skewX(-12deg);filter:blur(7px)}
+.obg .hill{position:absolute;bottom:0;border-radius:50% 50% 0 0;background:rgba(3,20,30,.55)}
+.obg .anchor{position:absolute;right:7%;bottom:7%;font-size:24px;opacity:.22}
+.runcounts{position:absolute;left:14px;top:12px;display:flex;gap:8px;z-index:6}
+.cpill{display:inline-flex;align-items:center;gap:6px;background:rgba(2,12,20,.6);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:800;font-size:clamp(13px,1.6vw,18px);backdrop-filter:blur(16px) saturate(180%)}
+.cpill .ico{font-size:1.1em}.cpill.saved{color:var(--green)}.cpill.trashed{color:var(--coral)}
+.aitop{position:absolute;left:50%;top:6px;transform:translateX(-50%);width:clamp(56px,8vw,82px);z-index:7}
+.spotlight{position:absolute;left:50%;top:clamp(54px,8.5vw,82px);transform:translateX(-50%);
+  width:clamp(150px,26vw,230px);height:clamp(118px,21vw,176px);
+  clip-path:polygon(38% 0,62% 0,100% 100%,0 100%);
+  background:linear-gradient(rgba(127,233,243,.16),rgba(127,233,243,0));opacity:0;transition:.3s;z-index:2}
+.spotlight.show{opacity:1}
+.spotlight.ok{background:linear-gradient(rgba(79,224,160,.24),rgba(79,224,160,0))}
+.spotlight.no{background:linear-gradient(rgba(255,107,94,.24),rgba(255,107,94,0))}
+.scanframe{position:absolute;left:50%;top:47%;transform:translate(-50%,-50%);
+  width:clamp(118px,20vw,166px);height:clamp(118px,20vw,166px);border-radius:20px;display:grid;place-items:center;
+  border:3px solid rgba(127,233,243,.5);background:rgba(2,18,28,.4);opacity:0;backdrop-filter:blur(4px);
+  transition:border-color .35s cubic-bezier(.34,1.56,.64,1),opacity .25s,box-shadow .4s cubic-bezier(.34,1.56,.64,1);z-index:4}
+.scanframe.show{opacity:1}
+.scanframe.ok{border-color:var(--green);box-shadow:0 0 0 5px rgba(79,224,160,.18)}
+.scanframe.no{border-color:var(--coral);box-shadow:0 0 0 5px rgba(255,107,94,.18)}
+.scanframe svg.fish{width:80%;height:80%}.scanframe .ico{font-size:clamp(62px,12vw,108px)}
+.verdict{position:absolute;left:50%;top:calc(47% + clamp(72px,11vw,98px));transform:translateX(-50%);font-size:clamp(26px,4vw,40px);opacity:0;transition:.25s;z-index:6}
+.floatitem{position:absolute;left:50%;top:47%;transform:translate(-50%,-50%);width:clamp(66px,12vw,112px);height:clamp(66px,12vw,112px);
+  display:grid;place-items:center;transition:left .85s cubic-bezier(.3,.1,.2,1),top .85s,transform .85s,opacity .85s;z-index:3}
+.floatitem svg.fish{width:92%;height:92%}.floatitem .ico{font-size:clamp(50px,9.5vw,92px)}
+.floatitem.bob{animation:bob 3.6s ease-in-out infinite}
+@keyframes bob{0%,100%{margin-top:0}50%{margin-top:-9px}}
+.binbig{position:absolute;right:12px;bottom:8px;font-size:clamp(38px,7vw,66px);z-index:5;transition:transform .15s}
+.binbig.bump{transform:scale(1.18)}
+.runbar{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px}
+.controls{display:flex;gap:8px}
+.ctrlbtn{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--foam);font-size:15px;cursor:pointer;transition:.15s}
+.ctrlbtn:hover{transform:translateY(-1px)}.ctrlbtn.on{background:var(--cyan);color:var(--abyss)}
+/* lab / label */
+.labwrap{display:flex;flex-direction:column;align-items:center;gap:16px;width:100%}
+.labtop{width:100%;display:flex;justify-content:flex-end}
+.labcount{display:inline-flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 15px;font-weight:800;font-size:clamp(13px,1.5vw,17px)}
+.labmid{display:flex;align-items:center;gap:clamp(14px,4vw,44px);justify-content:center}
+.polaroid{background:#f4f6f7;padding:11px 11px 18px;border-radius:6px;box-shadow:0 16px 40px rgba(0,0,0,.4);transform:rotate(-2deg)}
+.photoinner{width:clamp(140px,25vw,224px);height:clamp(140px,25vw,224px);background:#10222e;border-radius:3px;display:grid;place-items:center;outline:2px solid rgba(58,215,232,.55);outline-offset:5px}
+.photoinner svg.fish{width:80%;height:80%}.photoinner .ico{font-size:clamp(78px,15vw,138px)}
+.labai{width:clamp(66px,9.5vw,104px);flex:none}
+
+/* ============================================================
+   ☀️ LIGHT SUNNY OCEAN — kid-friendly Apple redesign (v3)
+   ============================================================ */
+.bubbles{z-index:1}
+.bubble{background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.95),rgba(255,255,255,.18));border:1px solid rgba(255,255,255,.55);box-shadow:inset 0 -2px 4px rgba(255,255,255,.5)}
+
+/* underwater scenery (light version of reference #3) */
+.scenery{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.scenery .rays{position:absolute;inset:0}
+.scenery .rays i{position:absolute;top:-14%;height:135%;transform:skewX(-9deg);filter:blur(11px);opacity:.5;
+  background:linear-gradient(transparent,rgba(255,255,255,.55),transparent);animation:rayShift 11s ease-in-out infinite alternate}
+.scenery .rays i:nth-child(1){left:7%;width:13%}
+.scenery .rays i:nth-child(2){left:30%;width:9%;opacity:.38;animation-duration:14s}
+.scenery .rays i:nth-child(3){left:56%;width:12%;animation-duration:9s}
+.scenery .rays i:nth-child(4){left:80%;width:8%;opacity:.38;animation-duration:13s}
+@keyframes rayShift{0%{transform:skewX(-9deg) translateX(-14px)}100%{transform:skewX(-13deg) translateX(16px)}}
+.scenery .seabed{position:absolute;left:0;bottom:0;width:100%;height:min(54vh,440px)}
+.scenery .weed{animation:weedSway 6s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:bottom}
+@keyframes weedSway{0%{transform:rotate(-2.5deg)}100%{transform:rotate(2.5deg)}}
+.scenery .bganchor{position:absolute;right:4%;bottom:6%;font-size:clamp(40px,7vw,86px);opacity:.15;filter:saturate(.35)}
+
+/* header / brand */
+.brand{color:var(--ink);font-weight:850;letter-spacing:-.02em}
+.brand .a{color:var(--cyan)}
+
+/* progress track segments */
+.seg{background:rgba(255,255,255,.6);color:var(--ink-soft);border:1px solid rgba(255,255,255,.7);
+  box-shadow:0 3px 10px var(--shadow);backdrop-filter:blur(10px) saturate(160%)}
+.seg.active{color:#fff;background:linear-gradient(180deg,var(--cyan-soft),var(--cyan));
+  border-color:transparent;box-shadow:0 8px 20px rgba(28,193,230,.5);transform:scale(1.12)}
+.seg.done{color:var(--cyan);background:rgba(255,255,255,.75)}
+
+/* headings */
+h2,.q{color:var(--ink)}
+
+/* AI robot 🤖 — emoji, pops & floats on light bg */
+.ai{display:inline-flex;align-items:center;justify-content:center;line-height:1;
+  font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;
+  font-size:clamp(74px,11vw,116px);
+  filter:drop-shadow(0 12px 20px rgba(9,58,82,.28));
+  animation:aiFloat 4s ease-in-out infinite}
+.aitop .ai{font-size:clamp(46px,7.2vw,70px)}
+.labai .ai{font-size:clamp(58px,8.6vw,92px)}
+@keyframes aiFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.ai.sad{animation:aiShake .55s ease-in-out;filter:drop-shadow(0 12px 20px rgba(9,58,82,.28)) grayscale(.55) brightness(.9)}
+@keyframes aiShake{0%,100%{transform:rotate(0)}18%{transform:rotate(-10deg)}38%{transform:rotate(9deg)}58%{transform:rotate(-6deg)}78%{transform:rotate(4deg)}}
+
+/* glass speech bubble */
+.bubble-txt{color:var(--ink);background:var(--card);border:1.5px solid var(--card-line);border-radius:26px;
+  box-shadow:0 22px 50px var(--shadow),inset 0 1px 0 rgba(255,255,255,.7);
+  backdrop-filter:blur(30px) saturate(190%)}
+
+/* item / picture cards */
+.item-card{background:var(--card);border:1.5px solid var(--card-line);border-radius:32px;
+  box-shadow:0 26px 60px var(--shadow),inset 0 1px 0 rgba(255,255,255,.7)}
+
+/* buttons */
+.btn{color:#fff;border-radius:20px;font-weight:850;
+  background:linear-gradient(180deg,var(--cyan-soft),var(--cyan));
+  box-shadow:0 12px 26px rgba(28,193,230,.45),inset 0 1px 0 rgba(255,255,255,.6)}
+.btn:hover{box-shadow:0 20px 38px rgba(28,193,230,.55),inset 0 1px 0 rgba(255,255,255,.6)}
+.btn.amber{color:#7a4a00;background:linear-gradient(180deg,#ffd98a,var(--amber));
+  box-shadow:0 12px 26px rgba(255,177,59,.5),inset 0 1px 0 rgba(255,255,255,.7);
+  animation:ctaPulse 2.4s ease-in-out infinite}
+.btn.amber:hover{animation:none;box-shadow:0 20px 40px rgba(255,177,59,.6),inset 0 1px 0 rgba(255,255,255,.7)}
+@keyframes ctaPulse{0%,100%{box-shadow:0 12px 26px rgba(255,177,59,.5),inset 0 1px 0 rgba(255,255,255,.7)}
+  50%{box-shadow:0 16px 38px rgba(255,177,59,.85),inset 0 1px 0 rgba(255,255,255,.7)}}
+.btn.ghost{color:var(--ink);background:var(--card);border:1.5px solid var(--card-line);
+  box-shadow:0 8px 20px var(--shadow);backdrop-filter:blur(14px)}
+
+/* multiple-choice chips */
+.choice{color:var(--ink);background:var(--card);border:2px solid var(--card-line);border-radius:22px;
+  box-shadow:0 10px 24px var(--shadow);backdrop-filter:blur(14px) saturate(170%)}
+.choice:hover{color:var(--cyan);border-color:var(--cyan);box-shadow:0 16px 32px rgba(28,193,230,.3)}
+
+/* yes / no label buttons */
+.lbtn{background:var(--card);border-radius:22px;box-shadow:0 10px 24px var(--shadow);
+  backdrop-filter:blur(14px) saturate(170%)}
+.lbtn.no{color:#e8503f;border-color:rgba(255,111,97,.55)}
+.lbtn.no:hover{background:rgba(255,111,97,.12);box-shadow:0 16px 32px rgba(255,111,97,.32)}
+.lbtn.yes{color:#13a877;border-color:rgba(47,212,154,.6)}
+.lbtn.yes:hover{background:rgba(47,212,154,.12);box-shadow:0 16px 32px rgba(47,212,154,.32)}
+
+/* meta + progress bar */
+.meta{color:var(--ink-soft)}.meta b{color:var(--ink)}
+.progress{background:rgba(255,255,255,.6);border:1.5px solid var(--card-line);box-shadow:inset 0 2px 5px var(--shadow)}
+.progress>i{background:linear-gradient(90deg,var(--green),var(--cyan))}
+
+/* ---- run scene: sunlit underwater ---- */
+.ocean{border:1.5px solid var(--card-line);border-radius:30px;
+  box-shadow:0 26px 60px var(--shadow),inset 0 2px 0 rgba(255,255,255,.5);
+  background:linear-gradient(180deg,#c8f1fb 0%,#86dbf0 40%,#41bce0 74%,#1f9fcf 100%)}
+.obg .ray{background:linear-gradient(transparent,rgba(255,255,255,.55),transparent);filter:blur(8px);opacity:.7}
+.obg .hill{background:linear-gradient(180deg,#ffe6a8,#f4cf7e);box-shadow:0 -4px 14px rgba(0,0,0,.05)}
+.obg .anchor{opacity:.3}
+
+/* count pills */
+.cpill{color:var(--ink);background:rgba(255,255,255,.82);border:1.5px solid var(--card-line);
+  box-shadow:0 6px 16px var(--shadow);backdrop-filter:blur(16px) saturate(180%)}
+.cpill.saved{color:#13a877}.cpill.trashed{color:#e8503f}
+.labcount{color:var(--ink);background:rgba(255,255,255,.82);border:1.5px solid var(--card-line);box-shadow:0 6px 16px var(--shadow)}
+.scoreboard .big{color:#fff;text-shadow:0 2px 8px rgba(9,58,82,.4)}
+.scoreboard small{color:rgba(255,255,255,.85)}
+
+/* scan frame + spotlight + verdict */
+.scanframe{border-radius:24px;border:3px solid rgba(255,255,255,.9);
+  background:rgba(22,46,64,.46);backdrop-filter:blur(6px);
+  box-shadow:0 10px 30px rgba(9,58,82,.28)}
+.scanframe.ok{border-color:var(--green);box-shadow:0 0 0 6px rgba(47,212,154,.28),0 10px 30px rgba(9,58,82,.25)}
+.scanframe.no{border-color:var(--coral);box-shadow:0 0 0 6px rgba(255,111,97,.28),0 10px 30px rgba(9,58,82,.25)}
+.spotlight{background:linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0))}
+.spotlight.ok{background:linear-gradient(rgba(47,212,154,.45),rgba(47,212,154,0))}
+.spotlight.no{background:linear-gradient(rgba(255,111,97,.45),rgba(255,111,97,0))}
+.verdict{filter:drop-shadow(0 6px 12px rgba(9,58,82,.3));animation:verdictPop .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes verdictPop{0%{transform:translateX(-50%) scale(.3)}100%{transform:translateX(-50%) scale(1)}}
+
+/* playback controls */
+.ctrlbtn{color:var(--ink);background:rgba(255,255,255,.82);border:1.5px solid var(--card-line);
+  box-shadow:0 6px 16px var(--shadow);font-weight:800;transition:transform .3s cubic-bezier(.34,1.56,.64,1),background .2s}
+.ctrlbtn:hover{transform:scale(1.12)}
+.ctrlbtn.on{color:#fff;background:linear-gradient(180deg,var(--cyan-soft),var(--cyan));border-color:transparent}
+
+/* polaroid snapshot */
+.polaroid{background:#fff;padding:13px 13px 22px;border-radius:14px;
+  box-shadow:0 24px 50px var(--shadow),inset 0 1px 0 rgba(255,255,255,.9);
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
+.polaroid:hover{transform:rotate(0deg) scale(1.03)}
+.photoinner{border-radius:10px;outline:none;
+  background:linear-gradient(165deg,#333c49,#212935);
+  box-shadow:inset 0 3px 12px rgba(0,0,0,.35)}
+
+/* scenes/cards entrance pop for kids */
+.item-card,.polaroid{animation:cardPop .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes cardPop{0%{opacity:0;transform:scale(.8) translateY(10px)}100%{opacity:1;transform:none}}
+.polaroid{animation:cardPopTilt .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes cardPopTilt{0%{opacity:0;transform:rotate(-2deg) scale(.8)}100%{opacity:1;transform:rotate(-2deg) scale(1)}}
+</style>
+</head>
+<body>
+<div class="scenery" aria-hidden="true">
+ <div class="rays"><i></i><i></i><i></i><i></i></div>
+ <svg class="seabed" viewBox="0 0 1440 400" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+   <g fill="#1f93b9" opacity=".14">
+     <rect x="20" y="200" width="120" height="200" rx="60"/><rect x="180" y="150" width="90" height="250" rx="45"/>
+     <rect x="300" y="230" width="140" height="170" rx="70"/><rect x="470" y="170" width="100" height="230" rx="50"/>
+     <rect x="620" y="210" width="150" height="190" rx="75"/><rect x="820" y="160" width="110" height="240" rx="55"/>
+     <rect x="980" y="220" width="140" height="180" rx="70"/><rect x="1160" y="180" width="100" height="220" rx="50"/>
+     <rect x="1300" y="210" width="120" height="190" rx="60"/>
+   </g>
+   <g class="weed" fill="none" stroke="#22a98c" stroke-width="13" stroke-linecap="round" opacity=".3">
+     <path d="M230 400 C215 340 250 312 232 262 C220 230 245 205 232 170"/>
+     <path d="M252 400 C270 348 240 318 258 276"/>
+     <path d="M735 400 C718 342 752 312 734 262 C722 230 748 208 735 176"/>
+     <path d="M1305 400 C1322 346 1292 314 1312 272"/>
+   </g>
+   <g fill="#147a9e" opacity=".2">
+     <rect x="90" y="270" width="150" height="130" rx="75"/><rect x="360" y="250" width="160" height="150" rx="80"/>
+     <rect x="640" y="280" width="150" height="120" rx="75"/><rect x="940" y="250" width="170" height="150" rx="85"/>
+     <rect x="1200" y="270" width="150" height="130" rx="75"/>
+   </g>
+   <g fill="#1f93b9" opacity=".18">
+     <g transform="translate(370,120)"><ellipse cx="0" cy="0" rx="16" ry="10"/><path d="M-14 0 l-12 -8 l0 16z"/></g>
+     <g transform="translate(395,142) scale(.75)"><ellipse cx="0" cy="0" rx="16" ry="10"/><path d="M-14 0 l-12 -8 l0 16z"/></g>
+     <g transform="translate(1090,150)"><ellipse cx="0" cy="0" rx="14" ry="9"/><path d="M14 0 l12 -7 l0 14z"/></g>
+   </g>
+ </svg>
+ <span class="bganchor">⚓</span>
+</div>
+<div class="bubbles" id="bubbles"></div>
+<div class="app">
+  <header>
+    <div class="brand">Океан<span class="a">·</span>ИИ</div>
+    <div class="track" id="track"></div>
+  </header>
+  <main><div class="stage" id="stage"></div></main>
+</div>
+<script>
+const ICONS={whale:'🐋',dolphin:'🐬',turtle:'🐢',jelly:'🪼',octopus:'🐙',crab:'🦀',bag:'🛍️',can:'🥫',cup:'🥤',lotion:'🧴',tire:'🛞',juice:'🧃',boot:'👢',bin:'🗑️',star:'⭐',check:'✅',ban:'🚫'};
+function aiSVG(){return '<span class="ai" id="aiface">🤖</span>';}
+function setMood(m){const a=document.getElementById('aiface');if(a)a.className='ai '+(m==='sad'?'sad':'');}
+
+/* ---------- parametric fish ---------- */
+const COLORS={red:0,orange:28,green:130,blue:212,purple:280};
+let _fishN=0;
+function fishSVG(p){
+ // plump rounded body, two big eyes set close together, simple dark smile,
+ // little diamond marks, red/coral pointed fins (complementary colour).
+ const hue=p.hue;
+ const body=`hsl(${hue} 56% 56%)`, bodyDk=`hsl(${hue} 56% 45%)`, light=`hsl(${hue} 64% 71%)`;
+ const fh=(hue+165)%360;
+ const fin=`hsl(${fh} 70% 57%)`, findk=`hsl(${fh} 68% 47%)`;
+ const ink='#1b2531';
+ const ry=27+p.round*5, rx=34-p.round*2, cx=62, cy=46, top=cy-ry, bot=cy+ry, id='f'+(++_fishN);
+ let mouth;
+ if(p.mouth==='teeth') mouth=`<path d="M73 54 q9 -3 18 0 q-3 8 -9 8 q-6 0 -9 -8z" fill="${ink}"/><rect x="77" y="54" width="10" height="3" rx="1" fill="#fff"/>`;
+ else if(p.mouth==='frown') mouth=`<path d="M74 60 Q82 52 90 60" fill="none" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/>`;
+ else if(p.mouth==='o') mouth=`<ellipse cx="82" cy="57" rx="4" ry="4.6" fill="${ink}"/>`;
+ else mouth=`<path d="M74 55 Q82 63 90 55" fill="none" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/>`;
+ const angry=p.angry>0.4;
+ const brows = angry ? `<line x1="66" y1="29" x2="80" y2="34" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/><line x1="98" y1="29" x2="84" y2="34" stroke="${ink}" stroke-width="2.8" stroke-linecap="round"/>` : '';
+ let deco=`<g fill="${light}" opacity=".9"><path d="M51 40 l4 4 l-4 4 l-4 -4z"/><path d="M60 48 l3.4 3.4 l-3.4 3.4 l-3.4 -3.4z"/></g>`;
+ if(p.pattern==='dots') deco=`<g fill="${light}" opacity=".9"><circle cx="52" cy="42" r="3.2"/><circle cx="46" cy="52" r="2.6"/><circle cx="60" cy="56" r="2.6"/></g>`;
+ if(p.pattern==='stripes') deco=`<g stroke="${bodyDk}" stroke-width="4" opacity=".4" stroke-linecap="round"><line x1="50" y1="${top+8}" x2="48" y2="${bot-8}"/><line x1="62" y1="${top+5}" x2="60" y2="${bot-5}"/></g>`;
+ return `<svg class="fish" viewBox="0 0 130 92" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+   <linearGradient id="${id}b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset=".55" stop-color="${body}"/><stop offset="1" stop-color="${bodyDk}"/></linearGradient>
+   <filter id="${id}s" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="${bodyDk}" flood-opacity=".45"/></filter>
+  </defs>
+  <g filter="url(#${id}s)">
+   <path d="M${cx-rx+3} ${cy} L${cx-rx-23} ${cy-17} L${cx-rx-13} ${cy} L${cx-rx-23} ${cy+17} Z" fill="${findk}"/>
+   <path d="M${cx-10} ${top+6} L${cx+2} ${top-13} L${cx+13} ${top+4} Z" fill="${fin}"/>
+   <path d="M${cx-13} ${bot-5} L${cx-20} ${bot+12} L${cx-2} ${bot-1} Z" fill="${fin}"/>
+   <path d="M${cx+4} ${bot-4} L${cx+1} ${bot+13} L${cx+16} ${bot-2} Z" fill="${fin}"/>
+   <path d="M${cx+19} ${cy+ry-9} L${cx+25} ${cy+ry+5} L${cx+12} ${cy+ry-2} Z" fill="${findk}"/>
+   <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id}b)"/>
+  </g>
+  <ellipse cx="${cx-7}" cy="${top+ry*.42}" rx="${rx*.42}" ry="${ry*.22}" fill="#fff" opacity=".28"/>
+  ${deco}${brows}
+  <circle cx="74" cy="40" r="9.5" fill="#fff"/><circle cx="89" cy="40" r="9.5" fill="#fff"/>
+  <circle cx="75.6" cy="41.4" r="5" fill="#16202b"/><circle cx="90.6" cy="41.4" r="5" fill="#16202b"/>
+  <circle cx="73.6" cy="38.4" r="1.8" fill="#fff"/><circle cx="88.6" cy="38.4" r="1.8" fill="#fff"/>
+  ${mouth}</svg>`;
+}
+const clamp=v=>Math.max(0,Math.min(1,v)), nz=(v,a)=>clamp(v+(Math.random()-.5)*a);
+// feature idx: 0 fishShape,1 animalish,2 manmade,3 dull,4 red,5 blue,6 green,7 round,8 teeth,9 angry
+function fishItem(opts={}){
+ const names=Object.keys(COLORS);
+ const color=opts.color||names[Math.random()*names.length|0];
+ const moods=['smile','dots','stripes','teeth','frown','o'];
+ const round=opts.round!=null?opts.round:Math.random();
+ const angry=opts.angry!=null?opts.angry:(Math.random()<.4?Math.random():0);
+ const mouth=opts.mouth||(angry>.4?(Math.random()<.5?'teeth':'frown'):(['smile','o','smile'][Math.random()*3|0]));
+ const pattern=opts.pattern||(['none','dots','stripes','none'][Math.random()*4|0]);
+ const p={hue:COLORS[color]+(Math.random()*16-8),round,mouth,pattern,angry};
+ const f=[nz(1,.1),nz(.8,.25),0,nz(.1,.1),
+   color==='red'||color==='orange'?nz(.9,.15):nz(.05,.1),
+   color==='blue'?nz(.9,.15):nz(.05,.1),
+   color==='green'?nz(.9,.15):nz(.05,.1),
+   round,(mouth==='teeth')?1:nz(.05,.1),angry];
+ return {kind:'fish',svg:fishSVG(p),f,truthFish:true,truthBelongs:true,color,html:true};
+}
+const CBASE={whale:{0:.15,1:.9,3:1},dolphin:{0:.2,1:.9,3:.9},turtle:{0:.18,1:.85,3:.4},
+ jelly:{0:.05,1:.4,3:.2},octopus:{0:.1,1:.9,3:.5},crab:{0:.06,1:.7,3:.4,4:.6}};
+function creatureItem(name){
+ const b=CBASE[name];const f=[0,0,0,0,0,0,0,Math.random(),0,0];
+ f[0]=nz(b[0],.1);f[1]=nz(b[1],.2);f[2]=0;f[3]=nz(b[3],.2);if(b[4])f[4]=nz(b[4],.15);
+ return {kind:'creature',name,svg:'<span class="ico" data-i="'+name+'"></span>',f,truthFish:false,truthBelongs:true};
+}
+const TRASH=['bag','can','cup','lotion','tire','juice','boot'];
+function trashItem(name){
+ name=name||TRASH[Math.random()*TRASH.length|0];
+ const f=[0,0,1,nz(.5,.3),0,0,0,Math.random(),0,0];
+ return {kind:'trash',name,svg:'<span class="ico" data-i="'+name+'"></span>',f,truthFish:false,truthBelongs:false};
+}
+function paintIcons(root){(root||document).querySelectorAll('.ico[data-i]').forEach(e=>{const s=ICONS[e.dataset.i];if(s)e.textContent=s;});}
+
+/* ---------- classifier ---------- */
+const MASK={A:[0,3],C:[1,2],color:[4,5,6],subj:[9,8,7]};
+const sig=z=>1/(1+Math.exp(-z));
+let MODEL={W:[],B:0,mask:[]};
+function trainModel(samples,mask,epochs=320,lr=0.5){
+ let W=mask.map(()=>0),B=0;
+ for(let e=0;e<epochs;e++)for(const s of samples.slice().sort(()=>Math.random()-.5)){
+   let z=B;mask.forEach((mi,j)=>z+=W[j]*s.f[mi]);const p=sig(z),err=p-s.y;
+   mask.forEach((mi,j)=>W[j]-=lr*err*s.f[mi]);B-=lr*err;}
+ MODEL={W,B,mask};
+}
+function predict(f){let z=MODEL.B;MODEL.mask.forEach((mi,j)=>z+=MODEL.W[j]*f[mi]);return sig(z);}
+
+/* ---------- decks ---------- */
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;};
+function deckFishTrash(n){const d=[];for(let i=0;i<n;i++)d.push(Math.random()<.5?fishItem():trashItem());return d;}
+function deckCreatures(n){const c=['whale','dolphin','turtle','jelly','octopus','crab'];const d=[];
+ for(let i=0;i<n;i++){const r=Math.random();d.push(r<.4?fishItem():r<.75?creatureItem(c[Math.random()*c.length|0]):trashItem());}
+ // guarantee at least 2 creatures
+ d[0]=creatureItem('whale');d[1]=creatureItem('dolphin');return shuffle(d);}
+function deckColors(n){const cs=Object.keys(COLORS);const d=[];for(let i=0;i<n;i++)d.push(fishItem({color:cs[i%cs.length]}));return shuffle(d);}
+function deckExpr(n){const d=[];for(let i=0;i<n;i++)d.push(fishItem());return d;}
+
+/* ---------- engine ---------- */
+const stage=document.getElementById('stage');
+let si=0, state={};
+const SEGS=['Рыба?','Подвох','В воде?','Цвет','Мнение'];
+function renderTrack(seg){const t=document.getElementById('track');t.innerHTML='';
+ SEGS.forEach((s,i)=>{const d=document.createElement('div');d.className='seg'+(i===seg?' active':i<seg?' done':'');d.textContent=(i+1)+'. '+s;t.appendChild(d);});}
+function next(){si++;run();}
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+
+function run(){
+ const sc=SCENES[si];if(!sc)return;renderTrack(sc.seg||0);stage.innerHTML='';
+ setMood(sc.mood||'happy');
+ if(sc.type==='narrate')return narrate(sc);
+ if(sc.type==='choice')return choice(sc);
+ if(sc.type==='label')return label(sc);
+ if(sc.type==='train')return train(sc);
+ if(sc.type==='run')return runScene(sc);
+ if(sc.type==='finale')return finale(sc);
+}
+function narrate(sc){
+ stage.appendChild(el('div','',aiSVG()));setMood(sc.mood||'happy');
+ stage.appendChild(el('div','bubble-txt',typeof sc.text==='function'?sc.text():sc.text));
+ const f=el('div','footer');const b=el('button','btn amber',sc.btn||'Дальше');b.onclick=next;f.appendChild(b);stage.appendChild(f);
+ paintIcons(stage);
+}
+function choice(sc){
+ stage.appendChild(el('div','',aiSVG()));
+ stage.appendChild(el('h2',null,sc.q));
+ const c=el('div','choices');
+ sc.options.forEach(o=>{const b=el('button','choice',o.label);b.onclick=()=>{state[sc.store]=o.value;next();};c.appendChild(b);});
+ stage.appendChild(c);
+}
+function label(sc){
+ const deck=sc.deck(), min=sc.min||8; let i=0, collected=[];
+ const wrap=el('div','labwrap');
+ const top=el('div','labtop','<div class="labcount"><span class="ico" data-i="star"></span> <b id="lc">0</b></div>');
+ const q=el('div','q',typeof sc.q==='function'?sc.q():sc.q);
+ const mid=el('div','labmid');
+ const photo=el('div','polaroid'); const inner=el('div','photoinner'); photo.appendChild(inner);
+ const ai=el('div','labai',aiSVG());
+ mid.append(photo,ai);
+ const lb=el('div','lbtns');
+ const noB=el('button','lbtn no', sc.no);
+ const yesB=el('button','lbtn yes', sc.yes);
+ lb.append(noB,yesB);
+ const foot=el('div','footer'); const tr=el('button','btn amber',sc.cta||'Обучить ИИ →'); tr.disabled=true; foot.appendChild(tr);
+ wrap.append(top,q,mid,lb,foot); stage.appendChild(wrap);
+ function show(){ if(i>=deck.length)deck.push(...sc.deck()); inner.innerHTML=deck[i].svg; paintIcons(inner); }
+ function pick(y){ collected.push({f:deck[i].f,y}); i++; document.getElementById('lc').textContent=collected.length; tr.disabled=collected.length<min; show(); }
+ noB.onclick=()=>pick(0); yesB.onclick=()=>pick(1);
+ tr.onclick=()=>{ state.lastLabeled=deck.slice(0,i); trainModel(collected,MASK[sc.mask]); next(); };
+ show(); paintIcons(stage);
+}
+
+function train(sc){
+ stage.appendChild(el('div','',aiSVG()));setMood('happy');
+ stage.appendChild(el('h2',null,'ИИ изучает твои примеры…'));
+ const wrap=el('div');wrap.style.display='flex';wrap.style.justifyContent='center';
+ const pr=el('div','progress','<i></i>');wrap.appendChild(pr);stage.appendChild(wrap);
+ const foot=el('div','footer');const b=el('button','btn amber','Запустить в океан →');b.disabled=true;foot.appendChild(b);stage.appendChild(foot);
+ const bar=pr.querySelector('i');let p=0;const t=setInterval(()=>{p+=5+Math.random()*7;if(p>=100){p=100;clearInterval(t);b.disabled=false;}bar.style.width=p+'%';},85);
+ b.onclick=next;
+}
+function oceanBg(){
+ let h='<div class="obg">';
+ for(let k=0;k<3;k++) h+='<div class="ray" style="left:'+(12+k*32)+'%"></div>';
+ [[-4,70,30],[20,60,34],[55,66,30],[82,72,32]].forEach(a=>h+='<div class="hill" style="left:'+a[0]+'%;width:'+a[2]+'%;height:'+a[1]+'px"></div>');
+ return h+'<div class="anchor">\u2693</div></div>';
+}
+function runScene(sc){
+ const deck=(sc.useAdded&&state.lastLabeled&&state.lastLabeled.length)?state.lastLabeled:sc.deck();
+ const mode=sc.mode||'clean';
+ let i=0,saved=0,trashed=0,paused=false,delay=950;
+ stage.appendChild(el('h2',null,typeof sc.title==='function'?sc.title():sc.title));
+ const oc=el('div','ocean'); oc.innerHTML=oceanBg();
+ const countsHTML = mode==='pick'
+   ? '<span class="cpill saved"><span class="ico" data-i="check"></span> <b id="csave">0</b></span>'
+   : '<span class="cpill saved"><span class="ico" data-i="star"></span> <b id="csave">0</b></span><span class="cpill trashed"><span class="ico" data-i="bin"></span> <b id="ctrash">0</b></span>';
+ const counts=el('div','runcounts',countsHTML);
+ const aitop=el('div','aitop',aiSVG());
+ const spot=el('div','spotlight'); const frame=el('div','scanframe'); const verdict=el('div','verdict');
+ oc.append(counts,aitop,spot,frame,verdict);
+ let bin=null;
+ if(mode!=='pick'){ bin=el('div','binbig','<span class="ico" data-i="bin"></span>'); oc.appendChild(bin); }
+ stage.appendChild(oc);
+ const bar=el('div','runbar'); const controls=el('div','controls');
+ const pp=el('button','ctrlbtn','\u23F8'); const ff=el('button','ctrlbtn','\u23E9'); controls.append(pp,ff);
+ const nb=el('button','btn amber',sc.btn||'Дальше'); nb.style.visibility='hidden'; nb.onclick=next;
+ bar.append(controls,nb); stage.appendChild(bar);
+ paintIcons(stage);
+ const localAI=aitop.querySelector('.ai'); const moodLocal=m=>{if(localAI)localAI.className='ai '+(m==='sad'?'sad':'');};
+ pp.onclick=()=>{paused=!paused; pp.textContent=paused?'\u25B6':'\u23F8'; if(!paused)step();};
+ ff.onclick=()=>{delay=delay>600?480:950; ff.classList.toggle('on');};
+ function step(){
+   if(paused)return;
+   if(i>=deck.length){ nb.style.visibility='visible'; if(sc.onEnd)sc.onEnd(); return; }
+   const it=deck[i];
+   frame.className='scanframe show'; frame.innerHTML=it.svg; paintIcons(frame);
+   spot.className='spotlight show'; verdict.style.opacity='0'; moodLocal('happy');
+   setTimeout(()=>{
+     if(paused)return;
+     const p=predict(it.f); const keep=sc.keepIf?sc.keepIf(p):(p>=0.5);
+     frame.classList.add(keep?'ok':'no'); spot.classList.add(keep?'ok':'no');
+     verdict.innerHTML = keep?'<span class="ico" data-i="check"></span>':'<span class="ico" data-i="ban"></span>'; paintIcons(verdict); verdict.style.opacity='1';
+     const wrongRemoveAnimal=(it.kind!=='trash')&&!keep; moodLocal(wrongRemoveAnimal?'sad':'happy');
+     setTimeout(()=>{
+       const node=el('div','floatitem'); node.innerHTML=it.svg; paintIcons(node); oc.appendChild(node);
+       node.style.left='50%'; node.style.top='47%'; void node.offsetWidth;
+       if(keep){
+         const x=12+Math.random()*72, y=40+Math.random()*44;
+         node.style.left=x+'%'; node.style.top=y+'%';
+         saved++; document.getElementById('csave').textContent=saved;
+         setTimeout(()=>node.classList.add('bob'),850);
+       } else if(mode==='pick'){
+         node.style.left=(Math.random()<.5?-15:115)+'%'; node.style.opacity='0';
+         setTimeout(()=>node.remove(),900);
+       } else {
+         node.style.left='calc(100% - 48px)'; node.style.top='calc(100% - 40px)';
+         node.style.transform='translate(-50%,-50%) scale(.22)'; node.style.opacity='0';
+         trashed++; document.getElementById('ctrash').textContent=trashed;
+         if(bin){bin.classList.remove('bump'); void bin.offsetWidth; bin.classList.add('bump');}
+         setTimeout(()=>node.remove(),900);
+       }
+       frame.className='scanframe'; frame.innerHTML=''; spot.className='spotlight'; verdict.style.opacity='0';
+       i++; setTimeout(step, Math.max(260,delay-300));
+     },540);
+   },420);
+ }
+ step();
+}
+
+function finale(sc){
+ stage.appendChild(el('div','',aiSVG()));setMood('happy');
+ stage.appendChild(el('h2',null,sc.title));
+ stage.appendChild(el('div','bubble-txt',sc.text));
+ const foot=el('div','footer');const b=el('button','btn','Пройти заново');b.onclick=()=>{si=0;state={};run();};foot.appendChild(b);stage.appendChild(foot);
+}
+
+/* ---------- SCENES (the 9-step route) ---------- */
+const SCENES=[
+ {type:'narrate',seg:0,text:'Океан тонет в мусоре. Давай научим <b>ИИ</b> убирать только мусор и не трогать живых. Но сначала ИИ нужно обучить — на твоих примерах.',btn:'Поехали'},
+ {type:'narrate',seg:0,text:'Шаг 1. Научим ИИ отличать <b>рыбу</b> от мусора. Размечай: что рыба, а что нет.',btn:'Начать разметку'},
+ {type:'label',seg:0,q:'Это рыба?',no:'Не рыба',yes:'Рыба',mask:'A',min:30,deck:()=>deckFishTrash(12)},
+ {type:'narrate',seg:0,text:'ИИ проанализирует случайный набор объектов и пометит их на основе твоего обучения.',btn:'▶ Запустить'},
+ {type:'run',seg:0,title:'ИИ ищет рыбу',truth:'fish',useAdded:true,deck:()=>deckFishTrash(8),btn:'Дальше'},
+ {type:'narrate',seg:1,mood:'happy',text:'А что если в воде не только рыбы? Посмотрим, как ИИ справится с другими морскими существами.',btn:'▶ Запустить'},
+ {type:'run',seg:1,title:'А тут не только рыбы…',truth:'fish',deck:()=>deckCreatures(9),btn:'Что произошло?',
+   onEnd:()=>{}},
+ {type:'narrate',seg:1,mood:'sad',text:'Заметил? ИИ пометил кита, дельфина и других как <b>«не рыба»</b> — и хотел их убрать! Мы ведь учили его только на рыбах. <b>ИИ знает ровно то, что ты ему показал.</b>',btn:'Исправим это'},
+ {type:'narrate',seg:2,mood:'happy',text:'Шаг 2. Научим ИИ по-новому — не «рыба или нет», а <b>что должно находиться в воде</b>. Живые существа — оставить, мусор — убрать.',btn:'Начать разметку'},
+ {type:'label',seg:2,q:'Должно ли это находиться в воде?',no:'Убрать',yes:'Оставить',mask:'C',min:30,deck:()=>deckCreatures(13)},
+ {type:'narrate',seg:2,text:'Как думаешь, теперь ИИ справится лучше? Давай проверим.',btn:'▶ Запустить'},
+ {type:'run',seg:2,title:'Теперь ИИ умнее',truth:'belongs',deck:()=>deckCreatures(9),btn:'Отлично!'},
+ {type:'narrate',seg:3,text:'Шаг 3. Научим ИИ узнавать рыб по <b>признаку</b>. Выбери, какой признак будем искать.',btn:'Выбрать'},
+ {type:'choice',seg:3,q:'Какой цвет будем искать?',store:'targetColor',options:[{label:'🔴 Красный',value:'red'},{label:'🔵 Синий',value:'blue'},{label:'🟢 Зелёный',value:'green'}]},
+ {type:'label',seg:3,q:()=>'Эта рыба '+ruColor(state.targetColor)+'?',no:'Нет',yes:'Да',mask:'color',min:30,deck:()=>deckColors(12)},
+ {type:'narrate',seg:3,text:()=>'Проверим, научился ли ИИ находить '+ruColorAcc(state.targetColor)+' рыб.',btn:'▶ Запустить'},
+ {type:'run',seg:3,title:()=>'ИИ ищет '+ruColorAcc(state.targetColor)+' рыб',truth:'color',scoreLabel:'точность',mode:'pick',deck:()=>deckColors(8),btn:'Дальше'},
+ {type:'narrate',seg:4,text:'Шаг 4. А теперь — слово, которое зависит от твоего <b>мнения</b>. Ты сам решаешь, какие рыбы ему подходят.',btn:'Выбрать слово'},
+ {type:'choice',seg:4,q:'Какому слову научим ИИ?',store:'word',options:[{label:'😠 Сердитый',value:'сердитый'},{label:'😊 Дружелюбный',value:'дружелюбный'},{label:'😢 Грустный',value:'грустный'}]},
+ {type:'label',seg:4,q:()=>'Эта рыба «'+state.word+'»?',no:'Нет',yes:'Да',mask:'subj',min:30,deck:()=>deckExpr(12)},
+ {type:'narrate',seg:4,text:'▶ Посмотрим, кого ИИ теперь считает такими.',btn:'Запустить'},
+ {type:'run',seg:4,title:()=>'ИИ ищет «'+state.word+'» рыб',score:false,mode:'pick',deck:()=>deckExpr(8),btn:'Что это значит?'},
+ {type:'narrate',seg:4,mood:'happy',text:()=>'ИИ не знает, что значит «'+state.word+'». Он просто <b>перенял твоё мнение</b> из твоих меток. Другой человек научил бы его по-другому — и ИИ судил бы иначе. Так в ИИ попадает <b>предвзятость людей</b>.',btn:'Вывод'},
+ {type:'finale',seg:4,title:'Ты обучил ИИ! 🌟',text:'Главное правило, которое ты увидел сам: <b>какие данные дашь — так ИИ и работает</b>. Узко обучишь — будет ошибаться. Дашь свои оценки — переймёт их. В нашем лицее ты научишься создавать такой ИИ по-настоящему.'},
+];
+function ruColor(c){return {red:'красная',blue:'синяя',green:'зелёная'}[c]||c;}
+function ruColorAcc(c){return {red:'красных',blue:'синих',green:'зелёных'}[c]||c;}
+
+/* bubbles */
+const bw=document.getElementById('bubbles');
+for(let i=0;i<22;i++){const b=document.createElement('div');b.className='bubble';const s=6+Math.random()*22;
+ b.style.width=b.style.height=s+'px';b.style.left=Math.random()*100+'vw';b.style.animationDuration=(8+Math.random()*12)+'s';
+ b.style.animationDelay=(-Math.random()*12)+'s';bw.appendChild(b);}
+run();
+</script>
+</body>
+</html>
